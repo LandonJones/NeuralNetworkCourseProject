@@ -4,18 +4,18 @@ import numpy as np
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
-
+# The derivative of the sigmoid function
 def sigmoid_derivative(x):
     return x*(1-x)
 
 class Perceptron:
     def __init__(self, weights, bias):
-        self.weights = weights # Vector
-        self.new_weights = []
-        self.bias = bias
+        self.weights = weights # List of input weights
+        self.new_weights = []  # List of weights pending update
+        self.bias = bias  
         self.new_bias = 0
         self.activation = 0
-        self.delta = None
+        self.delta = None 
         self.input_size = len(weights)
 
     def calc_activity(self, input):
@@ -27,6 +27,7 @@ class Perceptron:
         return activity
 
     def calc_activation(self, input_vector):
+        # Compute activatioin value
         activity = self.calc_activity(input_vector)
         self.activation = sigmoid(activity)
 
@@ -40,16 +41,19 @@ class Perceptron:
         # Initialize a list for new weights
         self.new_weights = []
 
+        # For each wight in weights, compute new weight from old weight
         for i in range(self.input_size):
             # Value of the change in weights based on computing PDF (Perceptron Delta Function)
             delta_weight = eta * self.delta * input_vector[i]
             self.new_weights.append(self.weights[i] + delta_weight)
 
     def new_b(self, eta):
+        # Compute new bias
         delta_bias = eta * self.delta
         self.new_bias = self.bias + delta_bias
 
     def compute(self, input_vector, eta, desired_output):
+        # Compute the required information in one step
         self.calc_activation(input_vector)
         self.calc_delta(desired_output)
         self.new_w(input_vector, eta)
@@ -60,31 +64,8 @@ class Perceptron:
         self.bias = self.new_bias
 
 
-    def calc_activation2(self, input_vector):
-        sum = self.calc_activity(input_vector)
-        self.activation = np.sqrt(sum)
-        return sum
 
-    def new_w2(self, input_vector, eta):
-        # Initialize a list for new weights
-        self.new_weights = []
 
-        for i in range(self.input_size):
-            # Value of the change in weights based on computing PDF (Perceptron Delta Function)
-            delta_weight = eta * self.delta * input_vector[i]
-            self.new_weights.append(self.weights[i] - delta_weight)
-
-    def calc_delta2(self, desired_output, sum):
-        # Compute error
-        error = desired_output - self.activation
-        # Compute delta - delta value computed using PDF
-        self.delta = -error * 0.5*(sum)**(-0.5)
-
-    def compute2(self, input_vector, eta, desired_output):
-        sum = self.calc_activation2(input_vector)
-        self.calc_delta2(desired_output,sum)
-        self.new_w2(input_vector, eta)
-        self.new_b(eta)
 
 
 
