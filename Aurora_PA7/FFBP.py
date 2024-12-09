@@ -1,10 +1,25 @@
 from typing import List
-
+import numpy as np
 def error(output, desired_output):
     return desired_output - output
 
+class Model():
+    def get_weights(self):
+        raise NotImplementedError
+    def train_step(self, inputs, eta, output):
+        raise NotImplementedError
+    def train(self, dataset, iterations, eta, debug=False):
+        prev_weights = []
+        for _ in range(iterations):
+            for entry in dataset:
+                inputs = entry["Inputs"]
+                output = entry["Output"]
+                self.train_step(inputs, eta, output)
+            if debug: 
+                prev_weights.append(self.get_weights())
+        return prev_weights
 
-class Network:
+class Network(Model):
     def __init__(self, hidden_layer,output_layer):
         self.hidden_layer = hidden_layer
         self.output_layer = output_layer
@@ -40,54 +55,70 @@ class Network:
         self.feed_forward(input_vector)
         self.new_wb(input_vector, eta, desired_output)
         self.update()
-
+    def get_weights(self):
+        weights = []
+        bias = []
+        for layer in [self.hidden_layer, self.output_layer]:
+            layer_weights = []
+            for layer_ in layer.layer:
+                layer_weights.append(layer_.weights)
+                bias.append(layer_.bias)
+            weights.append(layer_weights)
+        return {"weights": weights, 
+                "bias": bias}
 
 # Formula of compute E:
 # E = 0.5 * error ** 2
 
-class Simple_Perceptron:
-    def __init__(self, weights: List, eta: float):
+class Simple_Perceptron(Model):
+    def __init__(self, weights: List, bias: float, eta: float):
         self.weights = weights
         self.bias = 0
         self.eta = eta
 
-    def calculate(self, inputs: List) -> float:
-        return self.weights[0] * inputs[0] + self.weights[1] * inputs[1] + self.bias
-    
-    def error_correct(self, inputs: List, predicted: float, expected: float):
-        # Correct the weights and biases based on performance
-        # Weight update formula = wi_original + eta * (y_true - y_pred) * x_i
+    def feed_forward(self, inputs: List) -> float:
+        # for a simple perceptron the output is a dot product of the weights
+        # and inputs plus the bias
+        return sum([weight*input for weight,input in zip(self.weights, inputs)]) + self.bias
+
+    def train_step(self, input_vector, eta, output):
+        predicted_output = self.feed_forward(input_vector)
         for i in range(len(self.weights)):
-            self.weights[i] += self.eta * (expected - predicted) * inputs[i]
-        # Update bias
-        self.bias += self.eta * (expected - predicted)
+            self.weights[i] += self.eta * (output[0] - predicted_output)*input_vector[i]
+        self.bias += self.eta * (output[0] - predicted_output)
+    def get_weights(self):
+        return {"weights": self.weights, "bias": self.bias}
 
-    def round_predicted(self, predicted: float) -> int: 
-        # Round the predicted value to either 0 or 1
-        if predicted > 0.5: 
-            return 1
-        else: 
-            return 0
-
-    def train(self, inputs: List, expected: List, iterations: int):
-        # Iterate over certain iterations
-        for i in range(iterations):
-            # Iterate over all inputs
-            for data in range(len(inputs)):
-                # Present i/o pair and calculate expected with rounding
-                predicted = self.round_predicted(self.calculate(inputs[data]))
-                # Update weights
-                self.error_correct(inputs[data], predicted, expected[data])
-        return 0
-            
-    def test(self, inputs: List) -> List: 
-        # Iterate over all inputs
-        predicted_list = []
-        for data in range(len(inputs)):
-            # Present input pair to calculate predicted value
-            predicted_list.append(self.round_predicted(self.calculate(inputs[data])))
-        # Return the predicted values
-        return predicted_list
+class Threshold:
+    def __init__(self, model, dataset):
+        self.model = model
+        self.find_threshold(dataset)
+        
+    def find_threshold(self, dataset):
+        max_thresh = 0 
+        max_num_correct = 0
+        for thresh in np.linspace(0, 1, 1000):
+            curr_num_correct = 0
+            for entry in dataset:
+                inputs = entry["Inputs"]
+                outputs = entry["Output"]
+                if self.model.feed_forward(inputs) > thresh:
+                    tmp_output = 1
+                else:
+                     tmp_output = 0
+                if tmp_output == outputs[0]: 
+                    curr_num_correct += 1
+            if curr_num_correct > max_num_correct:
+                max_thresh = thresh
+                max_num_correct = curr_num_correct
+        self.threshold = max_thresh
+        self.correct = max_num_correct
+        return max_thresh, max_num_correct
+    
+    def evaluate(self, inputs):
+        output = self.model.feed_forward(inputs)
+        return int(output >= self.threshold)
+        
 
 
 
